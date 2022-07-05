@@ -48,17 +48,63 @@
         }
         const csrftoken = getCookie('csrftoken');
 
+        let activeItem = null
+
         buildList()
         function buildList() {
             var url = 'http://127.0.0.1:8000/api/task-list/'
             let newTask = document.getElementsByClassName('task-list')[0]
-            newTask.innerHTML = ''
+            // newTask.innerHTML = ''
+            var list_snapshot = []
             fetch(url)
                 .then(res => res.json())
                 .then(function (data) {
 
-                    data.forEach(ele => {
-                        newTask.innerHTML += `<li>${ele.title}</li><button class="btn btn-primary">Edit</button><button class="btn btn-danger">Delete</button>`
+                    data.forEach((ele, i) => {
+
+                        try {
+                            document.getElementById(`item-id${i}`).remove()
+                        } catch (err) {
+                            console.log(err);
+                        }
+
+                        newTask.innerHTML += `<li id="item-id${i}" class="tit">${ele.title}
+                        <button class="btn btn-primary editBtn">Edit</button>
+                        <button class="btn btn-danger delBtn">Delete</button>
+                    </li>
+                        `
+
+                        if(list_snapshot.length > data.length){
+                            for (let index = list_snapshot.length; index < data.length; index++) {
+                                document.getElementById(`item-id${index}`).remove()
+                            }
+                        }
+
+                        list_snapshot = data
+                    });
+
+                    data.forEach((ele, i) => {
+                        var editBtn = document.getElementsByClassName('editBtn')[i]
+                        var delBtn = document.getElementsByClassName('delBtn')[i]
+                        var titBtn = document.getElementsByClassName('tit')[i]
+
+                        editBtn.addEventListener('click', (function (item) {
+                            return function () {
+                                editItem(item)
+                            }
+                        })(data[i]))
+
+                        delBtn.addEventListener('click', (function (item) {
+                            return function () {
+                                deleteItem(item)
+                            }
+                        })(data[i]))
+
+                        titBtn.addEventListener('click', (function (item) {
+                            return function () {
+                                completeInComplete(item)
+                            }
+                        })(data[i]))
                     });
                 })
         }
@@ -68,6 +114,11 @@
             e.preventDefault()
 
             var url = 'http://127.0.0.1:8000/api/task-create/'
+            if (activeItem != null) {
+                url = `http://127.0.0.1:8000/api/task-update/${activeItem.id}/`
+                activeItem = null
+            }
+
             let data = document.getElementById('title').value
 
             fetch(url, {
@@ -82,6 +133,40 @@
                 form_ad.reset()
             })
         })
+
+        function editItem(item) {
+            activeItem = item
+            document.getElementById('title').value = activeItem.title
+        }
+
+        function deleteItem(item) {
+            console.log(item);
+            var url = `http://127.0.0.1:8000/api/task-delete/${item.id}/`
+            fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Content-type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                }
+            }).then(res => {
+                buildList()
+            })
+        }
+
+        function completeInComplete(item) {
+            var url = `http://127.0.0.1:8000/api/task-update/${item.id}/`
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-type': 'application/json',
+                    'X-CSRFToken': csrftoken
+                },
+                body: JSON.stringify({ 'title': item.title, 'completed': !item.completed })
+            }).then(res => {
+                buildList()
+            })
+        }
     </script>
 </body>
 
